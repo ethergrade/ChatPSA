@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import httpx
+from typing_extensions import Self
 
 from .config import Settings
 
@@ -29,7 +30,7 @@ class HaloClient:
         self._token_expires_at = 0.0
         self._token_lock = asyncio.Lock()
 
-    async def __aenter__(self) -> "HaloClient":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:
@@ -113,8 +114,9 @@ class HaloClient:
     async def get_agent_me(self) -> Mapping[str, Any]:
         payload = await self.request("GET", "/Agent/me")
         if not isinstance(payload, Mapping):
-            raise RuntimeError("HaloPSA returned an unexpected Agent/me response")
+            raise TypeError("HaloPSA returned an unexpected Agent/me response")
         return payload
+
     async def get_ticket(self, ticket_id: int) -> Mapping[str, Any]:
         if ticket_id <= 0:
             raise ValueError("ticket_id must be a positive integer")
@@ -124,5 +126,89 @@ class HaloClient:
             params={"includedetails": "true"},
         )
         if not isinstance(payload, Mapping):
-            raise RuntimeError("HaloPSA returned an unexpected ticket response")
+            raise TypeError("HaloPSA returned an unexpected ticket response")
         return payload
+
+    async def _list_objects(self, path: str, resource_name: str) -> list[Mapping[str, Any]]:
+        payload = await self.request("GET", path)
+        if not isinstance(payload, list) or not all(
+            isinstance(item, Mapping) for item in payload
+        ):
+            raise RuntimeError(f"HaloPSA returned an unexpected {resource_name} list")
+        return payload
+
+    async def _get_object(
+        self,
+        path: str,
+        object_id: int,
+        resource_name: str,
+    ) -> Mapping[str, Any]:
+        if object_id <= 0:
+            raise ValueError(f"{resource_name}_id must be a positive integer")
+        payload = await self.request("GET", f"{path}/{object_id}")
+        if not isinstance(payload, Mapping):
+            raise TypeError(f"HaloPSA returned an unexpected {resource_name} response")
+        return payload
+
+    async def list_statuses(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/Status", "status")
+
+    async def get_status(self, status_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/Status", status_id, "status")
+
+    async def list_ticket_types(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/TicketType", "tickettype")
+
+    async def get_ticket_type(self, tickettype_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/TicketType", tickettype_id, "tickettype")
+
+    async def list_workflows(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/Workflow", "workflow")
+
+    async def get_workflow(self, workflow_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/Workflow", workflow_id, "workflow")
+
+    async def save_workflow(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/Workflow", json=[dict(payload)])
+
+    async def delete_workflow(self, workflow_id: int) -> Any:
+        if workflow_id <= 0:
+            raise ValueError("workflow_id must be a positive integer")
+        return await self.request("DELETE", f"/Workflow/{workflow_id}")
+
+    async def list_outcomes(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/Outcome", "outcome")
+
+    async def get_outcome(self, outcome_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/Outcome", outcome_id, "outcome")
+
+    async def list_ticket_rules(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/TicketRules", "ticketrule")
+
+    async def get_ticket_rule(self, ticketrule_id: int) -> Mapping[str, Any]:
+        if ticketrule_id <= 0:
+            raise ValueError("ticketrule_id must be a positive integer")
+        payload = await self.request(
+            "GET",
+            f"/TicketRules/{ticketrule_id}",
+            params={"includedetails": "true"},
+        )
+        if not isinstance(payload, Mapping):
+            raise TypeError("HaloPSA returned an unexpected ticketrule response")
+        return payload
+
+    async def save_ticket_rule(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/TicketRules", json=[dict(payload)])
+
+    async def delete_ticket_rule(self, ticketrule_id: int) -> Any:
+        if ticketrule_id <= 0:
+            raise ValueError("ticketrule_id must be a positive integer")
+        return await self.request("DELETE", f"/TicketRules/{ticketrule_id}")
+
+    async def save_status(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/Status", json=[dict(payload)])
+
+    async def delete_status(self, status_id: int) -> Any:
+        if status_id <= 0:
+            raise ValueError("status_id must be a positive integer")
+        return await self.request("DELETE", f"/Status/{status_id}")

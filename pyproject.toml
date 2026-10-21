@@ -13,11 +13,15 @@ license = { text = "MIT" }
 dependencies = [
     "mcp[cli]>=2,<3",
     "httpx>=0.28,<1",
-    "python-dotenv>=1,<2"
+    "python-dotenv>=1,<2",
+    "starlette>=0.40,<2",
+    "typing-extensions>=4.16,<5",
+    "uvicorn>=0.30,<1"
 ]
 
 [project.scripts]
 chatpsa = "chatpsa.server:main"
+chatpsa-web = "chatpsa.web:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/chatpsa"]

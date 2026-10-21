@@ -1,21 +1,42 @@
-"""ChatPSA MCP server exposing a deliberately small read-only surface."""
+"""ChatPSA MCP server for safe investigation and controlled administration."""
 
 from __future__ import annotations
 
 from typing import Any
 
+import httpx
 from mcp.server.mcpserver import MCPServer
 
+from .change_control import (
+    STATUS_WRITE_FIELDS,
+    TICKETRULE_SCALAR_WRITE_FIELDS,
+    WORKFLOW_WRITE_FIELDS,
+    authorize_write,
+    build_scalar_change_plan,
+    build_status_payload,
+    extract_object_id,
+    requested_diff,
+    validate_scalar_changes,
+)
 from .client import HaloClient
 from .config import Settings
-from .safe import safe_agent_projection, safe_ticket_projection
-
+from .diagnostics import diagnose_workflow, investigate_ticket
+from .safe import (
+    safe_agent_projection,
+    safe_outcome_projection,
+    safe_status_projection,
+    safe_ticket_projection,
+    safe_ticketrule_projection,
+    safe_tickettype_projection,
+    safe_workflow_projection,
+)
 
 mcp = MCPServer(
     "ChatPSA",
     instructions=(
-        "Safe, read-only HaloPSA access. Ticket results are projected through an "
-        "explicit allowlist; unrecognized fields are never returned."
+        "Safe HaloPSA investigation and administration. Results use explicit "
+        "allowlists. Writes default to dry-run and require configuration opt-in, "
+        "exact confirmation, read-back, and diff."
     ),
     log_level="WARNING",
 )
@@ -43,6 +64,344 @@ async def get_ticket_safe(ticket_id: int) -> dict[str, Any]:
     async with HaloClient(settings) as client:
         ticket = await client.get_ticket(ticket_id)
     return safe_ticket_projection(ticket)
+
+
+@mcp.tool()
+async def halo_status_list() -> dict[str, Any]:
+    """List HaloPSA statuses using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        statuses = await client.list_statuses()
+    items = [safe_status_projection(status) for status in statuses]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_status_get(status_id: int) -> dict[str, Any]:
+    """Get one HaloPSA status using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        status = await client.get_status(status_id)
+    return safe_status_projection(status)
+
+
+@mcp.tool()
+async def halo_tickettype_list() -> dict[str, Any]:
+    """List HaloPSA ticket types using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        tickettypes = await client.list_ticket_types()
+    items = [safe_tickettype_projection(item) for item in tickettypes]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_tickettype_get(tickettype_id: int) -> dict[str, Any]:
+    """Get one HaloPSA ticket type using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        tickettype = await client.get_ticket_type(tickettype_id)
+    return safe_tickettype_projection(tickettype)
+
+
+@mcp.tool()
+async def halo_workflow_list() -> dict[str, Any]:
+    """List HaloPSA workflows using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        workflows = await client.list_workflows()
+    items = [safe_workflow_projection(workflow) for workflow in workflows]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_workflow_get(workflow_id: int) -> dict[str, Any]:
+    """Get a workflow with allowlisted steps, actions, and stages."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        workflow = await client.get_workflow(workflow_id)
+    return safe_workflow_projection(workflow)
+
+
+@mcp.tool()
+async def halo_outcome_list() -> dict[str, Any]:
+    """List configured HaloPSA outcomes using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        outcomes = await client.list_outcomes()
+    items = [safe_outcome_projection(outcome) for outcome in outcomes]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_outcome_get(outcome_id: int) -> dict[str, Any]:
+    """Get one configured HaloPSA outcome using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        outcome = await client.get_outcome(outcome_id)
+    return safe_outcome_projection(outcome)
+
+
+@mcp.tool()
+async def halo_ticketrule_list() -> dict[str, Any]:
+    """List ticket rules with allowlisted criteria and outcomes."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        rules = await client.list_ticket_rules()
+    items = [safe_ticketrule_projection(rule) for rule in rules]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_ticketrule_get(ticketrule_id: int) -> dict[str, Any]:
+    """Get one ticket rule with allowlisted criteria and outcomes."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        rule = await client.get_ticket_rule(ticketrule_id)
+    return safe_ticketrule_projection(rule)
+
+
+@mcp.tool()
+async def halo_workflow_diagnose(workflow_id: int) -> dict[str, Any]:
+    """Analyze workflow topology and report structural troubleshooting findings."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        workflow = await client.get_workflow(workflow_id)
+    return diagnose_workflow(workflow)
+
+
+@mcp.tool()
+async def halo_ticket_investigate(ticket_id: int) -> dict[str, Any]:
+    """Correlate a ticket with status, type, workflow, and structural findings."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        ticket = await client.get_ticket(ticket_id)
+        status_id = ticket.get("status_id")
+        tickettype_id = ticket.get("tickettype_id")
+        workflow_id = ticket.get("workflow_id")
+        status = (
+            await client.get_status(status_id)
+            if isinstance(status_id, int) and status_id > 0
+            else None
+        )
+        tickettype = (
+            await client.get_ticket_type(tickettype_id)
+            if isinstance(tickettype_id, int) and tickettype_id > 0
+            else None
+        )
+        workflow = (
+            await client.get_workflow(workflow_id)
+            if isinstance(workflow_id, int) and workflow_id > 0
+            else None
+        )
+    return investigate_ticket(
+        ticket,
+        status=status,
+        tickettype=tickettype,
+        workflow=workflow,
+    )
+
+
+@mcp.tool()
+async def halo_workflow_change_plan(
+    workflow_id: int,
+    changes: dict[str, Any],
+) -> dict[str, Any]:
+    """Plan safe Workflow metadata changes without executing a write."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        before = await client.get_workflow(workflow_id)
+    validated, projected, diff = build_scalar_change_plan(
+        before,
+        changes,
+        allowed_fields=WORKFLOW_WRITE_FIELDS,
+    )
+    return {
+        "operation": "plan_workflow_metadata_update",
+        "dry_run": True,
+        "execution_available": False,
+        "workflow_id": workflow_id,
+        "before": safe_workflow_projection(before),
+        "requested_changes": validated,
+        "projected_after": safe_workflow_projection(projected),
+        "diff": diff,
+        "blocker": (
+            "Production execution remains disabled until recursive Workflow "
+            "actions, notifications, targets, access control, and layout "
+            "preservation are validated."
+        ),
+    }
+
+
+@mcp.tool()
+async def halo_ticketrule_change_plan(
+    ticketrule_id: int,
+    changes: dict[str, Any],
+) -> dict[str, Any]:
+    """Plan safe Ticket Rule scalar changes without executing a write."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        before = await client.get_ticket_rule(ticketrule_id)
+    validated, projected, diff = build_scalar_change_plan(
+        before,
+        changes,
+        allowed_fields=TICKETRULE_SCALAR_WRITE_FIELDS,
+    )
+    return {
+        "operation": "plan_ticketrule_scalar_update",
+        "dry_run": True,
+        "execution_available": False,
+        "ticketrule_id": ticketrule_id,
+        "before": safe_ticketrule_projection(before),
+        "requested_changes": validated,
+        "projected_after": safe_ticketrule_projection(projected),
+        "diff": diff,
+        "blocker": (
+            "Production execution remains disabled until recursive Ticket Rule "
+            "criteria, outcomes, events, targets, and access-control "
+            "preservation are validated."
+        ),
+    }
+
+
+@mcp.tool()
+async def halo_status_create(
+    values: dict[str, Any],
+    dry_run: bool = True,
+    confirmation: str = "",
+) -> dict[str, Any]:
+    """Plan or create a Status with strict fields, confirmation, and read-back."""
+
+    settings = Settings.from_env()
+    payload = build_status_payload(None, values)
+    expected = "CREATE STATUS"
+    authorize_write(
+        settings,
+        dry_run=dry_run,
+        confirmation=confirmation,
+        expected_confirmation=expected,
+    )
+    if dry_run:
+        return {
+            "operation": "create_status",
+            "dry_run": True,
+            "writes_enabled": settings.enable_writes,
+            "confirmation_required": expected,
+            "payload": payload,
+        }
+
+    async with HaloClient(settings) as client:
+        response = await client.save_status(payload)
+        status_id = extract_object_id(response)
+        persisted = await client.get_status(status_id)
+    return {
+        "operation": "create_status",
+        "dry_run": False,
+        "status": safe_status_projection(persisted),
+        "diff": requested_diff(None, persisted, values),
+    }
+
+
+@mcp.tool()
+async def halo_status_update(
+    status_id: int,
+    changes: dict[str, Any],
+    dry_run: bool = True,
+    confirmation: str = "",
+) -> dict[str, Any]:
+    """Plan or update a Status with snapshot, read-back, and requested-field diff."""
+
+    settings = Settings.from_env()
+    validated_changes = validate_scalar_changes(
+        changes,
+        allowed_fields=STATUS_WRITE_FIELDS,
+    )
+    expected = f"UPDATE STATUS {status_id}"
+    async with HaloClient(settings) as client:
+        before = await client.get_status(status_id)
+        payload = build_status_payload(before, validated_changes)
+        authorize_write(
+            settings,
+            dry_run=dry_run,
+            confirmation=confirmation,
+            expected_confirmation=expected,
+        )
+        if dry_run:
+            return {
+                "operation": "update_status",
+                "dry_run": True,
+                "writes_enabled": settings.enable_writes,
+                "confirmation_required": expected,
+                "before": safe_status_projection(before),
+                "requested_changes": validated_changes,
+            }
+        await client.save_status(payload)
+        persisted = await client.get_status(status_id)
+    return {
+        "operation": "update_status",
+        "dry_run": False,
+        "before": safe_status_projection(before),
+        "after": safe_status_projection(persisted),
+        "diff": requested_diff(before, persisted, validated_changes),
+    }
+
+
+@mcp.tool()
+async def halo_status_delete(
+    status_id: int,
+    dry_run: bool = True,
+    confirmation: str = "",
+) -> dict[str, Any]:
+    """Plan or delete a Status with snapshot, confirmation, and 404 verification."""
+
+    settings = Settings.from_env()
+    expected = f"DELETE STATUS {status_id}"
+    async with HaloClient(settings) as client:
+        before = await client.get_status(status_id)
+        authorize_write(
+            settings,
+            dry_run=dry_run,
+            confirmation=confirmation,
+            expected_confirmation=expected,
+        )
+        if dry_run:
+            return {
+                "operation": "delete_status",
+                "dry_run": True,
+                "writes_enabled": settings.enable_writes,
+                "confirmation_required": expected,
+                "before": safe_status_projection(before),
+            }
+        await client.delete_status(status_id)
+        deleted = False
+        try:
+            await client.get_status(status_id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 404:
+                raise
+            deleted = True
+    if not deleted:
+        raise RuntimeError("Status delete read-back failed: object still exists")
+    return {
+        "operation": "delete_status",
+        "dry_run": False,
+        "before": safe_status_projection(before),
+        "verified_deleted": True,
+    }
 
 
 def main() -> None:

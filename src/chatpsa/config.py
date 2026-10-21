@@ -36,7 +36,7 @@ class Settings:
     env_file: Path | None = field(default=None, repr=False)
 
     @classmethod
-    def from_env(cls, env_path: str | Path | None = None) -> "Settings":
+    def from_env(cls, env_path: str | Path | None = None) -> Settings:
         """Load settings with process variables taking precedence over `.env`.
 
         The default path is resolved from this module, so launching ChatPSA from a

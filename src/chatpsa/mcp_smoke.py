@@ -43,41 +43,63 @@ async def run(ticket_id: int) -> None:
         args=["-m", "chatpsa.server"],
         cwd=project_root(),
     )
-    async with stdio_client(server) as (read_stream, write_stream):
-        async with ClientSession(read_stream, write_stream) as session:
-            await session.initialize()
-            tools = await session.list_tools()
-            names = {tool.name for tool in tools.tools}
-            expected = {"halo_connection_status", "get_ticket_safe"}
-            if names != expected:
-                raise RuntimeError(f"Unexpected MCP tools: {sorted(names)}")
+    async with (
+        stdio_client(server) as (read_stream, write_stream),
+        ClientSession(read_stream, write_stream) as session,
+    ):
+        await session.initialize()
+        tools = await session.list_tools()
+        names = {tool.name for tool in tools.tools}
+        expected = {
+            "halo_connection_status",
+            "get_ticket_safe",
+            "halo_status_list",
+            "halo_status_get",
+            "halo_tickettype_list",
+            "halo_tickettype_get",
+            "halo_workflow_list",
+            "halo_workflow_get",
+            "halo_outcome_list",
+            "halo_outcome_get",
+            "halo_ticketrule_list",
+            "halo_ticketrule_get",
+            "halo_workflow_diagnose",
+            "halo_ticket_investigate",
+            "halo_workflow_change_plan",
+            "halo_ticketrule_change_plan",
+            "halo_status_create",
+            "halo_status_update",
+            "halo_status_delete",
+        }
+        if names != expected:
+            raise RuntimeError(f"Unexpected MCP tools: {sorted(names)}")
 
-            connection_result = await session.call_tool("halo_connection_status", {})
-            if connection_result.is_error:
-                raise RuntimeError("halo_connection_status returned an MCP error")
-            connection = _mapping_from_result(connection_result)
-            if connection.get("connected") is not True:
-                raise RuntimeError("halo_connection_status did not confirm connectivity")
-            if connection.get("writes_enabled") is not False:
-                raise RuntimeError("Writes must remain disabled during the smoke test")
+        connection_result = await session.call_tool("halo_connection_status", {})
+        if connection_result.is_error:
+            raise RuntimeError("halo_connection_status returned an MCP error")
+        connection = _mapping_from_result(connection_result)
+        if connection.get("connected") is not True:
+            raise RuntimeError("halo_connection_status did not confirm connectivity")
+        if connection.get("writes_enabled") is not False:
+            raise RuntimeError("Writes must remain disabled during the smoke test")
 
-            ticket_result = await session.call_tool(
-                "get_ticket_safe", {"ticket_id": ticket_id}
+        ticket_result = await session.call_tool(
+            "get_ticket_safe", {"ticket_id": ticket_id}
+        )
+        if ticket_result.is_error:
+            raise RuntimeError("get_ticket_safe returned an MCP error")
+        ticket = _mapping_from_result(ticket_result)
+        allowed = set(SAFE_TICKET_FIELDS) | {"assets_count"}
+        unexpected = set(ticket) - allowed
+        if unexpected:
+            raise RuntimeError(
+                f"get_ticket_safe returned non-allowlisted keys: {sorted(unexpected)}"
             )
-            if ticket_result.is_error:
-                raise RuntimeError("get_ticket_safe returned an MCP error")
-            ticket = _mapping_from_result(ticket_result)
-            allowed = set(SAFE_TICKET_FIELDS) | {"assets_count"}
-            unexpected = set(ticket) - allowed
-            if unexpected:
-                raise RuntimeError(
-                    f"get_ticket_safe returned non-allowlisted keys: {sorted(unexpected)}"
-                )
-            if ticket.get("id") != ticket_id:
-                raise RuntimeError("get_ticket_safe returned the wrong ticket")
+        if ticket.get("id") != ticket_id:
+            raise RuntimeError("get_ticket_safe returned the wrong ticket")
 
     print(
-        "MCP smoke test: OK; 2 read-only tools registered; "
+        "MCP smoke test: OK; 19 guarded tools registered; "
         "connection and safe ticket projection validated."
     )
 

@@ -14,6 +14,7 @@ build/
 # Local/private HaloPSA research and generated data.
 AGENTS.md
 HALO_MCP_PROJECT_LOG*.md
+CHATPSA_DESIDERATA.md
 outputs/
 *-esempio-triage.md
 grep_*.md

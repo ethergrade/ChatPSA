@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-
 SAFE_TICKET_FIELDS = (
     "id",
     "summary",
@@ -35,6 +34,216 @@ SAFE_TICKET_FIELDS = (
 
 SAFE_AGENT_FIELDS = ("id", "name")
 
+SAFE_STATUS_FIELDS = (
+    "id",
+    "guid",
+    "name",
+    "shortname",
+    "type",
+    "colour",
+    "sequence",
+    "showonquickchange",
+    "includeinloadbalance",
+    "dontsendslareminders",
+    "slaaction",
+    "slaignorerelease",
+    "statuschangeto",
+    "statuschangetofreq",
+    "statusemailid",
+    "statusemailfreqdays",
+    "statusnochangehours",
+    "useworkinghours",
+)
+
+SAFE_TICKETTYPE_FIELDS = (
+    "id",
+    "guid",
+    "name",
+    "sequence",
+    "visible",
+    "agentscanselect",
+    "enduserscanselect",
+    "enduserscanlog",
+    "anonymouscanselect",
+    "anonymouscanlog",
+    "cancreate",
+    "group_id",
+    "group_name",
+    "use",
+    "itilrequesttype",
+    "workflow_id",
+    "initial_status",
+    "reopenedstatus",
+    "statusaftertechupdate",
+    "statusafteruserupdate",
+    "statusaftersupplierupdate",
+    "statusafterapproverupdate",
+    "parentstatusafterallchildclosed",
+    "default_team",
+    "default_agent",
+    "default_priority",
+    "default_sla",
+    "default_sendack",
+    "default_sendemail",
+    "dontsendslareminders",
+    "dontusependingclosure",
+    "apply_workflow_on_type_change",
+    "allowtickettypetobechild",
+    "allowall_child_tickettypes",
+    "allow_all_clients",
+    "allowattachments",
+    "includeinmobiledbsync",
+    "appointmentdefaultbody",
+    "project_type",
+    "is_sprint",
+    "access_control_level",
+)
+
+SAFE_WORKFLOW_FIELDS = (
+    "id",
+    "guid",
+    "name",
+    "note",
+    "active",
+    "notinuse",
+    "access_control_level",
+)
+
+SAFE_WORKFLOW_STEP_FIELDS = (
+    "fdid",
+    "guid",
+    "step_id",
+    "flow_id",
+    "name",
+    "isstart",
+    "isend",
+    "islaststep",
+    "stage_number",
+    "steptype",
+    "duration",
+)
+
+SAFE_WORKFLOW_ACTION_FIELDS = (
+    "id",
+    "flow_id",
+    "action_id",
+    "action_name",
+    "action_outcome",
+    "action_type",
+    "seq",
+    "auto_seq",
+    "start_step",
+    "end_step",
+    "restricted",
+    "use_work_hours",
+)
+
+SAFE_WORKFLOW_STAGE_FIELDS = (
+    "id",
+    "flow_id",
+    "name",
+    "sequence",
+    "type",
+    "edit_outcome",
+)
+
+SAFE_WORKFLOW_ALWAYS_ACTION_FIELDS = ("id", "buttonname", "labellong")
+
+SAFE_OUTCOME_FIELDS = (
+    "id",
+    "guid",
+    "outcome",
+    "buttonname",
+    "labellong",
+    "sequence",
+    "hidden",
+    "actionvisibility",
+    "systemid",
+    "colour",
+    "actiongroup",
+    "createchildticketortemplate",
+    "child_ticket_type_id",
+    "requesttype",
+    "child_template_id",
+    "dontshowscreen",
+    "hidetickettypeselection",
+    "add_note_to_parent",
+    "newsummaryfromsource",
+    "newdetailsfromsource",
+    "setdetailsfromnewticket",
+    "showevenifnochild",
+    "newstatus",
+    "defaultteam",
+    "defaultagent",
+    "defaultpriority",
+    "workflow_id",
+    "workflow_step_id",
+    "access_control_level",
+)
+
+SAFE_TICKETRULE_FIELDS = (
+    "id",
+    "guid",
+    "name",
+    "active",
+    "precedence",
+    "stopmatching",
+    "use",
+    "group_id",
+    "flowdetail_id",
+    "dontshownotification",
+    "new_workflow_id",
+    "new_workflow_name",
+    "new_status_id",
+    "new_teamid",
+    "new_team",
+    "new_agent_id",
+    "new_agent_name",
+    "new_priority_id",
+    "new_sla_id",
+    "new_template_id",
+    "new_template_name",
+    "outcome_id",
+    "outcome_name",
+    "script_id",
+    "script_name",
+    "set_colour",
+    "set_ticket_ai_indexing",
+    "batch_size",
+    "batch_sleep",
+    "access_control_level",
+)
+
+SAFE_TICKETRULE_CRITERIA_FIELDS = (
+    "id",
+    "rule_id",
+    "fieldname",
+    "tablename",
+    "type",
+    "use",
+    "value_int",
+    "value_string",
+    "value_type",
+    "value_type_id",
+    "partialmatch",
+    "matchseparatedvalues",
+    "match_after_start",
+    "match_after_target",
+    "flow_id",
+    "flow_seq",
+    "flow_type",
+)
+
+SAFE_TICKETRULE_OUTCOME_FIELDS = (
+    "id",
+    "rule_id",
+    "fieldname",
+    "value_string",
+    "value_type",
+    "value_type_id",
+    "is_dummy",
+)
+
 
 def project_fields(source: Mapping[str, Any], allowlist: tuple[str, ...]) -> dict[str, Any]:
     """Return only explicitly permitted scalar values from a source object."""
@@ -59,3 +268,72 @@ def safe_ticket_projection(ticket: Mapping[str, Any]) -> dict[str, Any]:
 
 def safe_agent_projection(agent: Mapping[str, Any]) -> dict[str, Any]:
     return project_fields(agent, SAFE_AGENT_FIELDS)
+
+
+def safe_status_projection(status: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(status, SAFE_STATUS_FIELDS)
+
+
+def safe_tickettype_projection(tickettype: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(tickettype, SAFE_TICKETTYPE_FIELDS)
+
+
+def safe_workflow_projection(workflow: Mapping[str, Any]) -> dict[str, Any]:
+    projected = project_fields(workflow, SAFE_WORKFLOW_FIELDS)
+
+    steps = workflow.get("steps")
+    if isinstance(steps, list):
+        safe_steps: list[dict[str, Any]] = []
+        for step in steps:
+            if not isinstance(step, Mapping):
+                continue
+            safe_step = project_fields(step, SAFE_WORKFLOW_STEP_FIELDS)
+            actions = step.get("actions")
+            if isinstance(actions, list):
+                safe_step["actions"] = [
+                    project_fields(action, SAFE_WORKFLOW_ACTION_FIELDS)
+                    for action in actions
+                    if isinstance(action, Mapping)
+                ]
+            safe_steps.append(safe_step)
+        projected["steps"] = safe_steps
+
+    stages = workflow.get("stages")
+    if isinstance(stages, list):
+        projected["stages"] = [
+            project_fields(stage, SAFE_WORKFLOW_STAGE_FIELDS)
+            for stage in stages
+            if isinstance(stage, Mapping)
+        ]
+
+    always_actions = workflow.get("always_allow_actions")
+    if isinstance(always_actions, list):
+        projected["always_allow_actions"] = [
+            project_fields(action, SAFE_WORKFLOW_ALWAYS_ACTION_FIELDS)
+            for action in always_actions
+            if isinstance(action, Mapping)
+        ]
+    return projected
+
+
+def safe_outcome_projection(outcome: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(outcome, SAFE_OUTCOME_FIELDS)
+
+
+def safe_ticketrule_projection(rule: Mapping[str, Any]) -> dict[str, Any]:
+    projected = project_fields(rule, SAFE_TICKETRULE_FIELDS)
+    criteria = rule.get("criteria")
+    if isinstance(criteria, list):
+        projected["criteria"] = [
+            project_fields(item, SAFE_TICKETRULE_CRITERIA_FIELDS)
+            for item in criteria
+            if isinstance(item, Mapping)
+        ]
+    outcomes = rule.get("outcomes")
+    if isinstance(outcomes, list):
+        projected["outcomes"] = [
+            project_fields(item, SAFE_TICKETRULE_OUTCOME_FIELDS)
+            for item in outcomes
+            if isinstance(item, Mapping)
+        ]
+    return projected

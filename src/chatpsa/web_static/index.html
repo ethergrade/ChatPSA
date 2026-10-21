@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="ChatPSA open — indagini guidate e amministrazione sicura per HaloPSA">
+    <title>ChatPSA open</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="ChatPSA open">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span>
+            <strong>ChatPSA</strong>
+            <small>open</small>
+          </span>
+        </a>
+
+        <div class="workspace-label">Workspace</div>
+        <nav class="nav-stack" aria-label="Sezioni">
+          <button class="nav-item active" type="button">
+            <span class="nav-icon">✦</span>
+            Nuova indagine
+          </button>
+          <button class="nav-item" type="button" data-draft="Analizza ticket ">
+            <span class="nav-icon">◎</span>
+            Ticket
+          </button>
+          <button class="nav-item" type="button" data-draft="Diagnostica workflow ">
+            <span class="nav-icon">⌘</span>
+            Workflow
+          </button>
+          <button class="nav-item" type="button" data-draft="Controlla regola ">
+            <span class="nav-icon">◇</span>
+            Rules
+          </button>
+        </nav>
+
+        <section class="safety-card" aria-label="Stato sicurezza">
+          <div class="status-line">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="connection-label">Verifica connessione…</span>
+          </div>
+          <strong>Modalità protetta</strong>
+          <p>Le risposte usano proiezioni sicure. Nessuna modifica viene applicata da questa pagina.</p>
+        </section>
+
+        <footer class="sidebar-footer">
+          <span>Community preview</span>
+          <a href="https://github.com/ethergrade/ChatPSA" rel="noreferrer">GitHub ↗</a>
+        </footer>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">HALOPSA INVESTIGATION ASSISTANT</p>
+            <h1>Indaga. Comprendi. Migliora.</h1>
+          </div>
+          <button class="clear-button" id="clear-chat" type="button">Pulisci sessione</button>
+        </header>
+
+        <section class="conversation" id="conversation" aria-live="polite">
+          <article class="message assistant-message">
+            <div class="avatar">C</div>
+            <div class="message-body">
+              <div class="message-meta">ChatPSA <span>• adesso</span></div>
+              <div class="answer-card intro-card">
+                <p class="answer-kicker">PRONTO PER L’INDAGINE</p>
+                <h2>Cosa vuoi capire di HaloPSA?</h2>
+                <p>Descrivi un problema di processo oppure indicami un ticket, un workflow o una rule. Ti guiderò dalle evidenze alle possibili soluzioni.</p>
+                <div class="prompt-grid">
+                  <button type="button" data-draft="Analizza ticket ">
+                    <span>Analizza un ticket</span>
+                    <small>Stato, tipo, workflow e anomalie</small>
+                  </button>
+                  <button type="button" data-draft="Diagnostica workflow ">
+                    <span>Controlla un workflow</span>
+                    <small>Step, azioni e transizioni</small>
+                  </button>
+                  <button type="button" data-draft="Controlla regola ">
+                    <span>Esamina una rule</span>
+                    <small>Criteri, outcome e precedenza</small>
+                  </button>
+                  <button type="button" data-prompt="Verifica connessione">
+                    <span>Verifica la connessione</span>
+                    <small>OAuth e disponibilità API</small>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <div class="composer-wrap">
+          <form class="composer" id="chat-form">
+            <label class="sr-only" for="message-input">Fai una domanda a ChatPSA</label>
+            <textarea id="message-input" rows="1" maxlength="2000" placeholder="Chiedi qualcosa su ticket, workflow, rules o processi…"></textarea>
+            <button class="send-button" id="send-button" type="submit" aria-label="Invia domanda">↑</button>
+          </form>
+          <p class="composer-note">ChatPSA può commettere errori. Verifica sempre le proposte prima di applicare modifiche.</p>
+        </div>
+      </main>
+    </div>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>
