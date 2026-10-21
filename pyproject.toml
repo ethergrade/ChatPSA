@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chatpsa"
+version = "0.1.0"
+description = "Open-source MCP server for HaloPSA"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "mcp[cli]>=2,<3",
+    "httpx>=0.28,<1",
+    "python-dotenv>=1,<2"
+]
+
+[project.scripts]
+chatpsa = "chatpsa.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chatpsa"]
