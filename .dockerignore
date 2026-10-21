@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+.pytest_cache
+*.pyc
+data
+knowledge/tenant
+HALO_MCP_PROJECT_LOG*.md
+CHATPSA_DESIDERATA.md
+*-esempio-triage.md
+grep_*.md
+endpoints.md
+safe_ticket_fields_psa.md
+ticket_endpoints_psa.md

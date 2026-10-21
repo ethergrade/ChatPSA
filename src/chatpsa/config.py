@@ -34,6 +34,16 @@ class Settings:
     transport: str = "stdio"
     timeout_seconds: float = 30.0
     env_file: Path | None = field(default=None, repr=False)
+    openai_api_key: str | None = field(default=None, repr=False)
+    openai_model: str = "gpt-5.6-sol"
+    openai_reasoning_effort: str = "medium"
+    openai_image_detail: str = "low"
+    openai_max_output_tokens: int = 4_000
+    domotz_api_url: str | None = None
+    domotz_api_key: str | None = field(default=None, repr=False)
+    access_token: str | None = field(default=None, repr=False)
+    agent_access_token: str | None = field(default=None, repr=False)
+    agent_identities_json: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls, env_path: str | Path | None = None) -> Settings:
@@ -75,6 +85,30 @@ class Settings:
         if timeout_seconds <= 0:
             raise RuntimeError("HALO_TIMEOUT_SECONDS must be greater than zero")
 
+        reasoning_effort = os.environ.get(
+            "OPENAI_REASONING_EFFORT", "medium"
+        ).strip().lower()
+        if reasoning_effort not in {"none", "low", "medium", "high", "xhigh", "max"}:
+            raise RuntimeError("OPENAI_REASONING_EFFORT has an unsupported value")
+
+        image_detail = os.environ.get("OPENAI_IMAGE_DETAIL", "low").strip().lower()
+        if image_detail not in {"low", "high", "original", "auto"}:
+            raise RuntimeError("OPENAI_IMAGE_DETAIL has an unsupported value")
+
+        max_output_raw = os.environ.get("OPENAI_MAX_OUTPUT_TOKENS", "4000").strip()
+        try:
+            max_output_tokens = int(max_output_raw)
+        except ValueError as exc:
+            raise RuntimeError("OPENAI_MAX_OUTPUT_TOKENS must be an integer") from exc
+        if not 256 <= max_output_tokens <= 128_000:
+            raise RuntimeError(
+                "OPENAI_MAX_OUTPUT_TOKENS must be between 256 and 128000"
+            )
+
+        domotz_api_url = os.environ.get("DOMOTZ_API_URL", "").strip() or None
+        if domotz_api_url and not domotz_api_url.startswith("https://"):
+            raise RuntimeError("DOMOTZ_API_URL must start with https://")
+
         return cls(
             base_url=base_url,
             client_id=os.environ["HALO_CLIENT_ID"].strip(),
@@ -87,4 +121,21 @@ class Settings:
             transport=os.environ.get("CHATPSA_TRANSPORT", "stdio").strip() or "stdio",
             timeout_seconds=timeout_seconds,
             env_file=selected,
+            openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip() or None,
+            openai_model=os.environ.get("OPENAI_MODEL", "gpt-5.6-sol").strip()
+            or "gpt-5.6-sol",
+            openai_reasoning_effort=reasoning_effort,
+            openai_image_detail=image_detail,
+            openai_max_output_tokens=max_output_tokens,
+            domotz_api_url=domotz_api_url,
+            domotz_api_key=os.environ.get("DOMOTZ_API_KEY", "").strip() or None,
+            access_token=os.environ.get("CHATPSA_ACCESS_TOKEN", "").strip() or None,
+            agent_access_token=os.environ.get(
+                "CHATPSA_AGENT_ACCESS_TOKEN", ""
+            ).strip()
+            or None,
+            agent_identities_json=os.environ.get(
+                "CHATPSA_AGENT_IDENTITIES_JSON", ""
+            ).strip()
+            or None,
         )

@@ -11,9 +11,10 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 
 dependencies = [
-    "mcp[cli]>=2,<3",
+    "mcp[cli]==2.2.0",
     "httpx>=0.28,<1",
     "python-dotenv>=1,<2",
+    "python-multipart>=0.0.20,<1",
     "starlette>=0.40,<2",
     "typing-extensions>=4.16,<5",
     "uvicorn>=0.30,<1"

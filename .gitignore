@@ -21,3 +21,13 @@ grep_*.md
 safe_ticket_fields_psa.md
 endpoints.md
 ticket_endpoints_psa.md
+
+# HiSolution-only knowledge, runtime state, and authentication material.
+knowledge/tenant/
+data/
+deploy/debian/.env
+deploy/debian/LEGGIMI.TXT
+CERT/
+*.key
+*.p12
+*.pfx

@@ -57,6 +57,14 @@ async def run(ticket_id: int) -> None:
             "halo_status_get",
             "halo_tickettype_list",
             "halo_tickettype_get",
+            "halo_tickettype_create",
+            "halo_tickettype_update",
+            "halo_tickettype_delete",
+            "halo_category_list",
+            "halo_category_get",
+            "halo_category_create",
+            "halo_category_update",
+            "halo_category_delete",
             "halo_workflow_list",
             "halo_workflow_get",
             "halo_outcome_list",
@@ -70,6 +78,10 @@ async def run(ticket_id: int) -> None:
             "halo_status_create",
             "halo_status_update",
             "halo_status_delete",
+            "halo_kb_search",
+            "halo_kb_get",
+            "halo_kb_tags",
+            "halo_kb_article_create_plan",
         }
         if names != expected:
             raise RuntimeError(f"Unexpected MCP tools: {sorted(names)}")
@@ -99,7 +111,7 @@ async def run(ticket_id: int) -> None:
             raise RuntimeError("get_ticket_safe returned the wrong ticket")
 
     print(
-        "MCP smoke test: OK; 19 guarded tools registered; "
+        "MCP smoke test: OK; 31 guarded tools registered; "
         "connection and safe ticket projection validated."
     )
 

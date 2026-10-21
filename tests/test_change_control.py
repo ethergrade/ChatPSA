@@ -5,12 +5,16 @@ import unittest
 from mcp.server.mcpserver.exceptions import ToolError
 
 from chatpsa.change_control import (
+    CATEGORY_WRITE_FIELDS,
     STATUS_WRITE_FIELDS,
+    TICKETTYPE_WRITE_FIELDS,
     authorize_write,
+    build_category_payload,
     build_isolated_ticketrule_payload,
     build_isolated_workflow_payload,
     build_scalar_change_plan,
     build_status_payload,
+    build_tickettype_payload,
     extract_object_id,
     requested_diff,
     validate_scalar_changes,
@@ -58,6 +62,32 @@ class ChangeControlTests(unittest.TestCase):
         self.assertEqual(result["name"], "Open")
         self.assertEqual(result["colour"], "#ffffff")
         self.assertNotIn("server_only", result)
+
+    def test_tickettype_create_is_hidden_and_requires_process_references(self) -> None:
+        payload = build_tickettype_payload(
+            None,
+            {"name": "New process", "workflow_id": 11, "initial_status": 1},
+        )
+        self.assertEqual(payload["id"], 0)
+        self.assertFalse(payload["visible"])
+        self.assertFalse(payload["agentscanselect"])
+        self.assertTrue(payload["includeinmobiledbsync"])
+        with self.assertRaisesRegex(ToolError, "Missing required fields"):
+            build_tickettype_payload(None, {"name": "Incomplete"})
+
+    def test_category_create_requires_a_name_and_ticket_type(self) -> None:
+        payload = build_category_payload(
+            None, {"category_name": "Monitoring", "type_id": 1, "level1": "Monitoring"}
+        )
+        self.assertEqual(payload["id"], 0)
+        self.assertEqual(payload["level1"], "Monitoring")
+        with self.assertRaisesRegex(ToolError, "Missing required fields"):
+            build_category_payload(None, {"category_name": "Incomplete"})
+        with self.assertRaisesRegex(ToolError, "non-writable"):
+            validate_scalar_changes(
+                {"category_name": "X", "unsafe": "drop"},
+                allowed_fields=CATEGORY_WRITE_FIELDS,
+            )
 
     def test_execution_requires_enablement_and_exact_confirmation(self) -> None:
         authorize_write(

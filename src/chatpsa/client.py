@@ -162,6 +162,28 @@ class HaloClient:
     async def get_ticket_type(self, tickettype_id: int) -> Mapping[str, Any]:
         return await self._get_object("/TicketType", tickettype_id, "tickettype")
 
+    async def save_ticket_type(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/TicketType", json=[dict(payload)])
+
+    async def delete_ticket_type(self, tickettype_id: int) -> Any:
+        if tickettype_id <= 0:
+            raise ValueError("tickettype_id must be a positive integer")
+        return await self.request("DELETE", f"/TicketType/{tickettype_id}")
+
+    async def list_categories(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/Category", "category")
+
+    async def get_category(self, category_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/Category", category_id, "category")
+
+    async def save_category(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/Category", json=[dict(payload)])
+
+    async def delete_category(self, category_id: int) -> Any:
+        if category_id <= 0:
+            raise ValueError("category_id must be a positive integer")
+        return await self.request("DELETE", f"/Category/{category_id}")
+
     async def list_workflows(self) -> list[Mapping[str, Any]]:
         return await self._list_objects("/Workflow", "workflow")
 
@@ -196,6 +218,51 @@ class HaloClient:
         if not isinstance(payload, Mapping):
             raise TypeError("HaloPSA returned an unexpected ticketrule response")
         return payload
+
+    async def search_kb_articles(
+        self, query: str, *, limit: int = 8
+    ) -> list[Mapping[str, Any]]:
+        query = " ".join(query.split())
+        if not query:
+            raise ValueError("query must not be empty")
+        if not 1 <= limit <= 20:
+            raise ValueError("limit must be between 1 and 20")
+        payload = await self.request(
+            "GET",
+            "/KBArticle",
+            params={
+                "search": query,
+                "includeactive": "true",
+                "pageinate": "true",
+                "page_no": 1,
+                "page_size": limit,
+            },
+        )
+        if not isinstance(payload, Mapping) or not isinstance(
+            payload.get("articles"), list
+        ):
+            raise RuntimeError("HaloPSA returned an unexpected KB article list")
+        return [
+            item for item in payload["articles"] if isinstance(item, Mapping)
+        ]
+
+    async def get_kb_article(self, article_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/KBArticle", article_id, "kb_article")
+
+    async def list_kb_tags(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/Tags", "tag")
+
+    async def save_kb_article(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/KBArticle", json=[dict(payload)])
+
+    async def list_release_types(self) -> list[Mapping[str, Any]]:
+        return await self._list_objects("/ReleaseType", "release_type")
+
+    async def get_release(self, release_id: int) -> Mapping[str, Any]:
+        return await self._get_object("/Release", release_id, "release")
+
+    async def save_release(self, payload: Mapping[str, Any]) -> Any:
+        return await self.request("POST", "/Release", json=[dict(payload)])
 
     async def save_ticket_rule(self, payload: Mapping[str, Any]) -> Any:
         return await self.request("POST", "/TicketRules", json=[dict(payload)])

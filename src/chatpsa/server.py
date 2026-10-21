@@ -8,12 +8,16 @@ import httpx
 from mcp.server.mcpserver import MCPServer
 
 from .change_control import (
+    CATEGORY_WRITE_FIELDS,
     STATUS_WRITE_FIELDS,
+    TICKETTYPE_WRITE_FIELDS,
     TICKETRULE_SCALAR_WRITE_FIELDS,
     WORKFLOW_WRITE_FIELDS,
     authorize_write,
+    build_category_payload,
     build_scalar_change_plan,
     build_status_payload,
+    build_tickettype_payload,
     extract_object_id,
     requested_diff,
     validate_scalar_changes,
@@ -21,8 +25,12 @@ from .change_control import (
 from .client import HaloClient
 from .config import Settings
 from .diagnostics import diagnose_workflow, investigate_ticket
+from .kb import build_kb_article_create_plan
 from .safe import (
     safe_agent_projection,
+    safe_category_projection,
+    safe_kb_article_projection,
+    safe_kb_tag_projection,
     safe_outcome_projection,
     safe_status_projection,
     safe_ticket_projection,
@@ -109,6 +117,27 @@ async def halo_tickettype_get(tickettype_id: int) -> dict[str, Any]:
 
 
 @mcp.tool()
+async def halo_category_list() -> dict[str, Any]:
+    """List HaloPSA ticket categories using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        categories = await client.list_categories()
+    items = [safe_category_projection(item) for item in categories]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_category_get(category_id: int) -> dict[str, Any]:
+    """Get one HaloPSA ticket category using a reviewed scalar allowlist."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        category = await client.get_category(category_id)
+    return safe_category_projection(category)
+
+
+@mcp.tool()
 async def halo_workflow_list() -> dict[str, Any]:
     """List HaloPSA workflows using a reviewed scalar allowlist."""
 
@@ -169,6 +198,70 @@ async def halo_ticketrule_get(ticketrule_id: int) -> dict[str, Any]:
     async with HaloClient(settings) as client:
         rule = await client.get_ticket_rule(ticketrule_id)
     return safe_ticketrule_projection(rule)
+
+
+@mcp.tool()
+async def halo_kb_search(query: str, limit: int = 8) -> dict[str, Any]:
+    """Search active HaloPSA KB articles and return safe, bounded projections."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        articles = await client.search_kb_articles(query, limit=limit)
+    items = [safe_kb_article_projection(article) for article in articles]
+    return {"query": query, "count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_kb_get(article_id: int) -> dict[str, Any]:
+    """Read one HaloPSA KB article with reviewed fields and cleaned text."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        article = await client.get_kb_article(article_id)
+    return safe_kb_article_projection(article)
+
+
+@mcp.tool()
+async def halo_kb_tags() -> dict[str, Any]:
+    """List tag IDs and names directly from the connected HaloPSA tenant."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        tags = await client.list_kb_tags()
+    items = [safe_kb_tag_projection(tag) for tag in tags]
+    return {"count": len(items), "items": items}
+
+
+@mcp.tool()
+async def halo_kb_article_create_plan(
+    title: str,
+    description: str,
+    resolution: str,
+    tag_ids: list[int],
+) -> dict[str, Any]:
+    """Prepare an inactive KB draft using only tag IDs read from HaloPSA."""
+
+    settings = Settings.from_env()
+    async with HaloClient(settings) as client:
+        tags = await client.list_kb_tags()
+    payload = build_kb_article_create_plan(
+        title=title,
+        description=description,
+        resolution=resolution,
+        tag_ids=tag_ids,
+        available_tags=tags,
+    )
+    return {
+        "operation": "create_kb_article_draft",
+        "dry_run": True,
+        "execution_available": False,
+        "payload": payload,
+        "approval_required": True,
+        "blocker": (
+            "The tenant-specific KB serializer must be validated with an "
+            "isolated inactive article before execution is enabled."
+        ),
+    }
 
 
 @mcp.tool()
@@ -402,6 +495,130 @@ async def halo_status_delete(
         "before": safe_status_projection(before),
         "verified_deleted": True,
     }
+
+
+@mcp.tool()
+async def halo_tickettype_create(
+    values: dict[str, Any], dry_run: bool = True, confirmation: str = ""
+) -> dict[str, Any]:
+    """Plan or create an initially hidden Ticket Type with read-back verification."""
+
+    settings = Settings.from_env()
+    payload = build_tickettype_payload(None, values)
+    expected = "CREATE TICKETTYPE"
+    authorize_write(settings, dry_run=dry_run, confirmation=confirmation, expected_confirmation=expected)
+    if dry_run:
+        return {"operation": "create_tickettype", "dry_run": True, "writes_enabled": settings.enable_writes, "confirmation_required": expected, "payload": payload}
+    async with HaloClient(settings) as client:
+        response = await client.save_ticket_type(payload)
+        object_id = extract_object_id(response)
+        persisted = await client.get_ticket_type(object_id)
+    return {"operation": "create_tickettype", "dry_run": False, "tickettype": safe_tickettype_projection(persisted), "diff": requested_diff(None, persisted, values)}
+
+
+@mcp.tool()
+async def halo_tickettype_update(
+    tickettype_id: int, changes: dict[str, Any], dry_run: bool = True, confirmation: str = ""
+) -> dict[str, Any]:
+    """Plan or update a Ticket Type with a snapshot, read-back, and diff."""
+
+    settings = Settings.from_env()
+    validated = validate_scalar_changes(changes, allowed_fields=TICKETTYPE_WRITE_FIELDS)
+    expected = f"UPDATE TICKETTYPE {tickettype_id}"
+    async with HaloClient(settings) as client:
+        before = await client.get_ticket_type(tickettype_id)
+        payload = build_tickettype_payload(before, validated)
+        authorize_write(settings, dry_run=dry_run, confirmation=confirmation, expected_confirmation=expected)
+        if dry_run:
+            return {"operation": "update_tickettype", "dry_run": True, "writes_enabled": settings.enable_writes, "confirmation_required": expected, "before": safe_tickettype_projection(before), "requested_changes": validated}
+        await client.save_ticket_type(payload)
+        persisted = await client.get_ticket_type(tickettype_id)
+    return {"operation": "update_tickettype", "dry_run": False, "before": safe_tickettype_projection(before), "after": safe_tickettype_projection(persisted), "diff": requested_diff(before, persisted, validated)}
+
+
+@mcp.tool()
+async def halo_tickettype_delete(
+    tickettype_id: int, dry_run: bool = True, confirmation: str = ""
+) -> dict[str, Any]:
+    """Plan or delete a Ticket Type with a required confirmation and 404 read-back."""
+
+    settings = Settings.from_env()
+    expected = f"DELETE TICKETTYPE {tickettype_id}"
+    async with HaloClient(settings) as client:
+        before = await client.get_ticket_type(tickettype_id)
+        authorize_write(settings, dry_run=dry_run, confirmation=confirmation, expected_confirmation=expected)
+        if dry_run:
+            return {"operation": "delete_tickettype", "dry_run": True, "writes_enabled": settings.enable_writes, "confirmation_required": expected, "before": safe_tickettype_projection(before)}
+        await client.delete_ticket_type(tickettype_id)
+        try:
+            await client.get_ticket_type(tickettype_id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return {"operation": "delete_tickettype", "dry_run": False, "before": safe_tickettype_projection(before), "verified_deleted": True}
+            raise
+    raise RuntimeError("Ticket Type delete read-back failed: object still exists")
+
+
+@mcp.tool()
+async def halo_category_create(
+    values: dict[str, Any], dry_run: bool = True, confirmation: str = ""
+) -> dict[str, Any]:
+    """Plan or create a HaloPSA ticket category with read-back verification."""
+
+    settings = Settings.from_env()
+    payload = build_category_payload(None, values)
+    expected = "CREATE CATEGORY"
+    authorize_write(settings, dry_run=dry_run, confirmation=confirmation, expected_confirmation=expected)
+    if dry_run:
+        return {"operation": "create_category", "dry_run": True, "writes_enabled": settings.enable_writes, "confirmation_required": expected, "payload": payload}
+    async with HaloClient(settings) as client:
+        response = await client.save_category(payload)
+        object_id = extract_object_id(response)
+        persisted = await client.get_category(object_id)
+    return {"operation": "create_category", "dry_run": False, "category": safe_category_projection(persisted), "diff": requested_diff(None, persisted, values)}
+
+
+@mcp.tool()
+async def halo_category_update(
+    category_id: int, changes: dict[str, Any], dry_run: bool = True, confirmation: str = ""
+) -> dict[str, Any]:
+    """Plan or update a category with a snapshot, read-back, and diff."""
+
+    settings = Settings.from_env()
+    validated = validate_scalar_changes(changes, allowed_fields=CATEGORY_WRITE_FIELDS)
+    expected = f"UPDATE CATEGORY {category_id}"
+    async with HaloClient(settings) as client:
+        before = await client.get_category(category_id)
+        payload = build_category_payload(before, validated)
+        authorize_write(settings, dry_run=dry_run, confirmation=confirmation, expected_confirmation=expected)
+        if dry_run:
+            return {"operation": "update_category", "dry_run": True, "writes_enabled": settings.enable_writes, "confirmation_required": expected, "before": safe_category_projection(before), "requested_changes": validated}
+        await client.save_category(payload)
+        persisted = await client.get_category(category_id)
+    return {"operation": "update_category", "dry_run": False, "before": safe_category_projection(before), "after": safe_category_projection(persisted), "diff": requested_diff(before, persisted, validated)}
+
+
+@mcp.tool()
+async def halo_category_delete(
+    category_id: int, dry_run: bool = True, confirmation: str = ""
+) -> dict[str, Any]:
+    """Plan or delete a category with a required confirmation and 404 read-back."""
+
+    settings = Settings.from_env()
+    expected = f"DELETE CATEGORY {category_id}"
+    async with HaloClient(settings) as client:
+        before = await client.get_category(category_id)
+        authorize_write(settings, dry_run=dry_run, confirmation=confirmation, expected_confirmation=expected)
+        if dry_run:
+            return {"operation": "delete_category", "dry_run": True, "writes_enabled": settings.enable_writes, "confirmation_required": expected, "before": safe_category_projection(before)}
+        await client.delete_category(category_id)
+        try:
+            await client.get_category(category_id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return {"operation": "delete_category", "dry_run": False, "before": safe_category_projection(before), "verified_deleted": True}
+            raise
+    raise RuntimeError("Category delete read-back failed: object still exists")
 
 
 def main() -> None:

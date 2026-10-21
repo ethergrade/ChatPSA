@@ -3,24 +3,52 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="ChatPSA open — indagini guidate e amministrazione sicura per HaloPSA">
-    <title>ChatPSA open</title>
+    <meta name="description" content="ChatPSA Agent Desk — assistenza guidata HaloPSA e Domotz">
+    <title>ChatPSA Agent Desk</title>
     <link rel="stylesheet" href="/assets/styles.css">
   </head>
   <body>
+    <div class="login-overlay" id="login-overlay" hidden>
+      <section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="login-title">
+        <div class="brand-mark login-mark" aria-hidden="true">C</div>
+        <p class="answer-kicker">ACCESSO PROTETTO</p>
+        <h2 id="login-title">Chi sta entrando in ChatPSA?</h2>
+        <p class="login-copy" id="login-copy">Scegli il tuo profilo. L’identità separa lo storico personale e protegge le richieste di modifica.</p>
+        <form id="login-form">
+          <div class="agent-fields" id="agent-fields" hidden>
+            <label for="agent-name">Nome e cognome</label>
+            <input id="agent-name" autocomplete="name" maxlength="160">
+            <label for="agent-email">Email aziendale</label>
+            <input id="agent-email" type="email" autocomplete="email" maxlength="254">
+          </div>
+          <label for="access-token">Token di accesso</label>
+          <input id="access-token" type="password" autocomplete="current-password" required>
+          <p class="login-error" id="login-error" role="alert"></p>
+          <div class="login-actions" id="role-actions">
+            <button class="login-secondary" id="agent-role" type="button">Sono un ServiceDesk Agent</button>
+            <button class="login-primary" id="admin-role" type="button">Sono un amministratore</button>
+          </div>
+          <div class="login-actions" id="submit-actions" hidden>
+            <button class="login-secondary" id="back-role" type="button">Indietro</button>
+            <button class="login-primary" type="submit">Accedi</button>
+          </div>
+        </form>
+        <small class="login-note">Il token resta solo in questa scheda del browser. Non inviarlo in chat.</small>
+      </section>
+    </div>
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="/" aria-label="ChatPSA open">
           <span class="brand-mark" aria-hidden="true">C</span>
           <span>
             <strong>ChatPSA</strong>
-            <small>open</small>
+            <small>agent desk</small>
           </span>
         </a>
 
         <div class="workspace-label">Workspace</div>
         <nav class="nav-stack" aria-label="Sezioni">
-          <button class="nav-item active" type="button">
+          <button class="nav-item active" id="new-conversation" type="button">
             <span class="nav-icon">✦</span>
             Nuova indagine
           </button>
@@ -36,7 +64,22 @@
             <span class="nav-icon">◇</span>
             Rules
           </button>
+          <button class="nav-item" type="button" data-draft="Un dispositivo Domotz risulta offline. Aiutami a correlare alert e ticket.">
+            <span class="nav-icon">◉</span>
+            Domotz
+          </button>
+          <button class="nav-item" type="button" data-draft="Cerca nella Knowledge Base HaloPSA informazioni su ">
+            <span class="nav-icon">▤</span>
+            Knowledge Base
+          </button>
+          <button class="nav-item" id="approvals-nav" type="button" hidden>
+            <span class="nav-icon">✓</span>
+            Approvazioni
+          </button>
         </nav>
+
+        <div class="workspace-label history-heading">Storico indagini</div>
+        <div class="history-list" id="history-list" aria-label="Storico chat"></div>
 
         <section class="safety-card" aria-label="Stato sicurezza">
           <div class="status-line">
@@ -48,7 +91,7 @@
         </section>
 
         <footer class="sidebar-footer">
-          <span>Community preview</span>
+          <span id="tenant-workspace">Tenant workspace</span>
           <a href="https://github.com/ethergrade/ChatPSA" rel="noreferrer">GitHub ↗</a>
         </footer>
       </aside>
@@ -56,8 +99,8 @@
       <main class="main-panel">
         <header class="topbar">
           <div>
-            <p class="eyebrow">HALOPSA INVESTIGATION ASSISTANT</p>
-            <h1>Indaga. Comprendi. Migliora.</h1>
+            <p class="eyebrow">HALOPSA + DOMOTZ SUPPORT BRAIN</p>
+            <h1>Indaga. Comprendi. Risolvi.</h1>
           </div>
           <button class="clear-button" id="clear-chat" type="button">Pulisci sessione</button>
         </header>
@@ -69,8 +112,8 @@
               <div class="message-meta">ChatPSA <span>• adesso</span></div>
               <div class="answer-card intro-card">
                 <p class="answer-kicker">PRONTO PER L’INDAGINE</p>
-                <h2>Cosa vuoi capire di HaloPSA?</h2>
-                <p>Descrivi un problema di processo oppure indicami un ticket, un workflow o una rule. Ti guiderò dalle evidenze alle possibili soluzioni.</p>
+                <h2>Come posso aiutarti oggi?</h2>
+                <p>Descrivi un problema, allega uno screenshot oppure indicami un ticket, dispositivo, workflow o rule. Userò la knowledge del tenant insieme ai dati live disponibili.</p>
                 <div class="prompt-grid">
                   <button type="button" data-draft="Analizza ticket ">
                     <span>Analizza un ticket</span>
@@ -88,6 +131,18 @@
                     <span>Verifica la connessione</span>
                     <small>OAuth e disponibilità API</small>
                   </button>
+                  <button type="button" data-draft="Analizza questo screenshot e spiegami lo stato e il possibile motivo del comportamento.">
+                    <span>Analizza uno screenshot</span>
+                    <small>Errore, stato e verifiche guidate</small>
+                  </button>
+                  <button type="button" data-draft="Un dispositivo Domotz risulta offline. Correlalo con HaloPSA.">
+                    <span>Correla Domotz e Halo</span>
+                    <small>Alert, dispositivo e ticket</small>
+                  </button>
+                  <button type="button" data-draft="Prepara una nuova bozza di articolo KB su ">
+                    <span>Crea una guida KB</span>
+                    <small>Contenuto e tag reali, con approvazione</small>
+                  </button>
                 </div>
               </div>
             </div>
@@ -95,9 +150,12 @@
         </section>
 
         <div class="composer-wrap">
+          <div class="attachment-list" id="attachment-list" aria-live="polite"></div>
           <form class="composer" id="chat-form">
+            <label class="attach-button" for="image-input" aria-label="Allega immagini">＋</label>
+            <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
             <label class="sr-only" for="message-input">Fai una domanda a ChatPSA</label>
-            <textarea id="message-input" rows="1" maxlength="2000" placeholder="Chiedi qualcosa su ticket, workflow, rules o processi…"></textarea>
+            <textarea id="message-input" rows="1" maxlength="2000" placeholder="Chiedi su ticket, processi, rules, workflow o Domotz…"></textarea>
             <button class="send-button" id="send-button" type="submit" aria-label="Invia domanda">↑</button>
           </form>
           <p class="composer-note">ChatPSA può commettere errori. Verifica sempre le proposte prima di applicare modifiche.</p>

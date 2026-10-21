@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+from html import unescape
+import re
 
 SAFE_TICKET_FIELDS = (
     "id",
@@ -97,6 +99,23 @@ SAFE_TICKETTYPE_FIELDS = (
     "project_type",
     "is_sprint",
     "access_control_level",
+)
+
+SAFE_CATEGORY_FIELDS = (
+    "id",
+    "guid",
+    "category_name",
+    "value",
+    "type_id",
+    "sla_id",
+    "priority_id",
+    "chargerate",
+    "category_group_id",
+    "itilrequesttype",
+    "allow_ai_suggestion",
+    "level1",
+    "level2",
+    "level3",
 )
 
 SAFE_WORKFLOW_FIELDS = (
@@ -244,6 +263,51 @@ SAFE_TICKETRULE_OUTCOME_FIELDS = (
     "is_dummy",
 )
 
+SAFE_KB_ARTICLE_FIELDS = (
+    "id",
+    "name",
+    "description",
+    "description_html",
+    "description_markdown",
+    "resolution",
+    "resolution_html",
+    "resolution_markdown",
+    "date_created",
+    "date_edited",
+    "next_review_date",
+    "inactive",
+    "is_draft",
+    "type",
+    "link",
+    "kb_tags",
+    "tag_string",
+    "primary_faq_list",
+    "primary_faq_list_name",
+    "showforall",
+    "showforallroles",
+    "access_control_level",
+)
+
+SAFE_KB_TAG_FIELDS = ("id", "text", "type")
+SAFE_RELEASE_FIELDS = (
+    "id",
+    "name",
+    "name_expanded",
+    "releasetype_id",
+    "releasetype_name",
+    "builddate",
+    "targetdate",
+    "releasedate",
+    "note",
+    "public_note",
+    "sequence",
+    "major_version_number",
+    "minor_version_number",
+    "patch_version_number",
+)
+SAFE_RELEASE_TYPE_FIELDS = ("id", "name", "releasenoteset")
+_HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
+
 
 def project_fields(source: Mapping[str, Any], allowlist: tuple[str, ...]) -> dict[str, Any]:
     """Return only explicitly permitted scalar values from a source object."""
@@ -276,6 +340,10 @@ def safe_status_projection(status: Mapping[str, Any]) -> dict[str, Any]:
 
 def safe_tickettype_projection(tickettype: Mapping[str, Any]) -> dict[str, Any]:
     return project_fields(tickettype, SAFE_TICKETTYPE_FIELDS)
+
+
+def safe_category_projection(category: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(category, SAFE_CATEGORY_FIELDS)
 
 
 def safe_workflow_projection(workflow: Mapping[str, Any]) -> dict[str, Any]:
@@ -337,3 +405,49 @@ def safe_ticketrule_projection(rule: Mapping[str, Any]) -> dict[str, Any]:
             if isinstance(item, Mapping)
         ]
     return projected
+
+
+def _clean_kb_text(value: Any, *, limit: int = 6_000) -> str | None:
+    if not isinstance(value, str):
+        return None
+    plain = unescape(_HTML_TAG_PATTERN.sub(" ", value))
+    compact = " ".join(plain.split())
+    if not compact:
+        return None
+    return compact[:limit]
+
+
+def safe_kb_tag_projection(tag: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(tag, SAFE_KB_TAG_FIELDS)
+
+
+def safe_kb_article_projection(article: Mapping[str, Any]) -> dict[str, Any]:
+    projected = project_fields(article, SAFE_KB_ARTICLE_FIELDS)
+    for field in (
+        "description",
+        "description_html",
+        "description_markdown",
+        "resolution",
+        "resolution_html",
+        "resolution_markdown",
+    ):
+        if field in projected:
+            cleaned = _clean_kb_text(projected[field])
+            if cleaned:
+                projected[field] = cleaned
+            else:
+                projected.pop(field, None)
+    tags = article.get("tags")
+    if isinstance(tags, list):
+        projected["tags"] = [
+            safe_kb_tag_projection(tag) for tag in tags if isinstance(tag, Mapping)
+        ]
+    return projected
+
+
+def safe_release_projection(release: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(release, SAFE_RELEASE_FIELDS)
+
+
+def safe_release_type_projection(release_type: Mapping[str, Any]) -> dict[str, Any]:
+    return project_fields(release_type, SAFE_RELEASE_TYPE_FIELDS)

@@ -30,6 +30,66 @@ STATUS_WRITE_FIELDS = frozenset(
     }
 )
 
+TICKETTYPE_WRITE_FIELDS = frozenset(
+    {
+        "name",
+        "use",
+        "sequence",
+        "visible",
+        "cancreate",
+        "agentscanselect",
+        "enduserscanselect",
+        "enduserscanlog",
+        "anonymouscanselect",
+        "anonymouscanlog",
+        "itilrequesttype",
+        "group_id",
+        "allow_all_clients",
+        "allowattachments",
+        "copyattachmentstochild",
+        "copyattachmentstorelated",
+        "is_sprint",
+        "includeinmobiledbsync",
+        "workflow_id",
+        "initial_status",
+        "reopenedstatus",
+        "statusaftertechupdate",
+        "statusafteruserupdate",
+        "statusaftersupplierupdate",
+        "statusafterapproverupdate",
+        "parentstatusafterallchildclosed",
+        "default_team",
+        "default_agent",
+        "default_priority",
+        "default_sla",
+        "default_sendack",
+        "default_sendemail",
+        "dontsendslareminders",
+        "dontusependingclosure",
+        "apply_workflow_on_type_change",
+        "allowtickettypetobechild",
+        "allowall_child_tickettypes",
+        "appointmentdefaultbody",
+    }
+)
+
+CATEGORY_WRITE_FIELDS = frozenset(
+    {
+        "category_name",
+        "value",
+        "type_id",
+        "sla_id",
+        "priority_id",
+        "chargerate",
+        "category_group_id",
+        "itilrequesttype",
+        "allow_ai_suggestion",
+        "level1",
+        "level2",
+        "level3",
+    }
+)
+
 WORKFLOW_WRITE_FIELDS = frozenset({"name", "note", "active", "notinuse"})
 WORKFLOW_STEP_WRITE_FIELDS = frozenset(
     {
@@ -160,6 +220,80 @@ def build_status_payload(
             value = current.get(key)
             if value is None or isinstance(value, (str, int, float, bool)):
                 payload[key] = value
+    payload.update(validated)
+    return payload
+
+
+def build_tickettype_payload(
+    current: Mapping[str, Any] | None,
+    changes: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a minimal, deliberately inactive Ticket Type payload.
+
+    HaloPSA requires ``appointmentdefaultbody`` and ``includeinmobiledbsync``
+    even for a draft Ticket Type.  A created type is intentionally not visible
+    or selectable until a later confirmed update enables it.
+    """
+
+    create = current is None
+    validated = validate_scalar_changes(
+        changes,
+        allowed_fields=TICKETTYPE_WRITE_FIELDS,
+        required_fields=(
+            frozenset({"name", "workflow_id", "initial_status"})
+            if create
+            else frozenset()
+        ),
+    )
+    payload: dict[str, Any] = {"id": 0 if create else current["id"]}
+    if current is not None:
+        payload.update(_copy_allowlisted_scalars(current, TICKETTYPE_WRITE_FIELDS))
+    elif create:
+        payload.update(
+            {
+                "visible": False,
+                "cancreate": False,
+                "agentscanselect": False,
+                "enduserscanselect": False,
+                "enduserscanlog": False,
+                "anonymouscanselect": False,
+                "anonymouscanlog": False,
+                "allow_all_clients": True,
+                "allowattachments": True,
+                "includeinmobiledbsync": True,
+                "default_sla": -1,
+                "default_sendack": 0,
+                "default_sendemail": False,
+                "dontsendslareminders": True,
+                "dontusependingclosure": True,
+                "apply_workflow_on_type_change": False,
+                "allowtickettypetobechild": False,
+                "allowall_child_tickettypes": True,
+                "appointmentdefaultbody": 0,
+            }
+        )
+    payload.update(validated)
+    return payload
+
+
+def build_category_payload(
+    current: Mapping[str, Any] | None,
+    changes: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a strict CategoryDetail payload for create or update."""
+
+    validated = validate_scalar_changes(
+        changes,
+        allowed_fields=CATEGORY_WRITE_FIELDS,
+        required_fields=(
+            frozenset({"category_name", "type_id"})
+            if current is None
+            else frozenset()
+        ),
+    )
+    payload: dict[str, Any] = {"id": 0 if current is None else current["id"]}
+    if current is not None:
+        payload.update(_copy_allowlisted_scalars(current, CATEGORY_WRITE_FIELDS))
     payload.update(validated)
     return payload
 

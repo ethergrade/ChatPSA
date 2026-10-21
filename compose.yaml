@@ -1,0 +1,45 @@
+services:
+  chatpsa:
+    build: .
+    env_file: .env
+    environment:
+      CHATPSA_WEB_HOST: 0.0.0.0
+      CHATPSA_WEB_PORT: 8765
+      CHATPSA_APPROVAL_DB: /app/data/approvals.sqlite3
+      CHATPSA_HISTORY_DB: /app/data/history.sqlite3
+    ports:
+      - "${CHATPSA_BIND_ADDRESS:-127.0.0.1}:${CHATPSA_WEB_PORT:-8765}:8765"
+    labels:
+      - "traefik.enable=${CHATPSA_TRAEFIK_ENABLED:-false}"
+      - "traefik.http.routers.chatpsa.rule=Host(`${CHATPSA_PUBLIC_HOST:-chatpsa.invalid}`)"
+      - "traefik.http.routers.chatpsa.entrypoints=websecure"
+      - "traefik.http.routers.chatpsa.tls=true"
+      - "traefik.http.services.chatpsa.loadbalancer.server.port=8765"
+      - "traefik.docker.network=${CHATPSA_PROXY_NETWORK:-bridge}"
+    volumes:
+      - chatpsa-data:/app/data
+      - ./knowledge/tenant:/app/knowledge/tenant:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  chatpsa-data:
+
+networks:
+  proxy:
+    external: true
+    name: ${CHATPSA_PROXY_NETWORK:-bridge}

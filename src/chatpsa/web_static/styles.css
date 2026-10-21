@@ -32,6 +32,32 @@ body {
 button, textarea { font: inherit; }
 button { color: inherit; }
 
+.login-overlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 10, 8, .88);
+  backdrop-filter: blur(18px);
+}
+.login-overlay[hidden] { display: none; }
+.login-dialog { width: min(470px, 100%); padding: 30px; border: 1px solid var(--line-strong); border-radius: 22px; background: linear-gradient(145deg, #12241f, #091512); box-shadow: 0 30px 100px rgba(0,0,0,.55); }
+.login-mark { margin-bottom: 22px; }
+.login-dialog h2 { margin: 0; font-size: 24px; letter-spacing: -.03em; }
+.login-copy { margin: 10px 0 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.login-dialog label { display: block; margin: 13px 0 7px; color: #b9cbc3; font-size: 11px; font-weight: 700; }
+.login-dialog input { width: 100%; padding: 12px 13px; border: 1px solid var(--line-strong); border-radius: 10px; outline: 0; background: #07110f; color: var(--text); font: inherit; }
+.login-dialog input:focus { border-color: rgba(114,230,177,.55); box-shadow: 0 0 0 3px rgba(114,230,177,.07); }
+.login-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 20px; }
+.login-actions button { min-height: 44px; padding: 10px 12px; border-radius: 11px; cursor: pointer; font-size: 12px; font-weight: 750; }
+.login-primary { border: 0; background: var(--accent); color: #062117; }
+.login-secondary { border: 1px solid var(--line-strong); background: transparent; }
+.login-error { min-height: 18px; margin: 9px 0 0; color: var(--danger); font-size: 11px; }
+.login-note { display: block; margin-top: 16px; color: #60756d; line-height: 1.45; }
+.agent-fields[hidden], .login-actions[hidden] { display: none; }
+
 .app-shell {
   display: grid;
   grid-template-columns: 270px minmax(0, 1fr);
@@ -87,6 +113,14 @@ button { color: inherit; }
 }
 
 .nav-stack { display: grid; gap: 6px; }
+.history-heading { margin-top: 25px; }
+.history-list { display: grid; gap: 5px; max-height: 31vh; overflow-y: auto; }
+.history-item { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 4px; align-items: center; }
+.history-open, .history-rename { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.history-open { overflow: hidden; padding: 8px 9px; border-radius: 8px; font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.history-open:hover, .history-open.active { background: var(--panel-2); color: var(--text); }
+.history-rename { width: 28px; height: 28px; border-radius: 8px; font-size: 12px; }
+.history-rename:hover { background: rgba(255,255,255,.05); color: var(--accent); }
 
 .nav-item {
   display: flex;
@@ -178,6 +212,7 @@ button { color: inherit; }
 
 .answer-card h2 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
 .answer-card > p:not(.answer-kicker) { margin: 9px 0 0; color: #b3c6be; line-height: 1.65; }
+.answer-text { white-space: pre-wrap; }
 
 .prompt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 20px; }
 .prompt-grid button {
@@ -224,6 +259,24 @@ button { color: inherit; }
 .composer textarea::placeholder { color: #587068; }
 .send-button { width: 38px; height: 38px; border: 0; border-radius: 11px; background: var(--accent); color: #092219; font-size: 20px; font-weight: 800; cursor: pointer; }
 .send-button:disabled { opacity: .42; cursor: wait; }
+.attach-button { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 2px; border: 1px solid var(--line); border-radius: 10px; color: var(--accent); cursor: pointer; }
+.attach-button:hover { background: rgba(114,230,177,.06); }
+.attachment-list { display: flex; flex-wrap: wrap; gap: 7px; width: min(900px, 100%); margin: 0 auto 8px; }
+.attachment-chip { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--muted); font-size: 10px; }
+.source-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.source-chip { padding: 5px 8px; border-radius: 999px; background: rgba(125,184,255,.08); color: var(--blue); font-size: 9px; }
+.approval-card { margin-top: 16px; padding: 12px; border: 1px solid rgba(241,198,114,.28); border-radius: 11px; background: rgba(241,198,114,.07); color: #f6d999; font-size: 11px; line-height: 1.5; }
+.approval-list { display: grid; gap: 11px; margin-top: 18px; }
+.approval-row { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0,0,0,.13); }
+.approval-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.approval-row p { margin: 9px 0; color: #bdcdc7; font-size: 12px; line-height: 1.5; }
+.approval-row small { color: var(--muted); }
+.approval-status { padding: 4px 7px; border-radius: 999px; background: rgba(125,184,255,.08); color: var(--blue); font-size: 9px; text-transform: uppercase; }
+.approval-status.completed, .approval-success { color: var(--accent); }
+.approval-status.failed, .approval-error { color: var(--danger); }
+.approve-button { margin-top: 12px; padding: 9px 12px; border: 0; border-radius: 9px; background: var(--accent); color: #062117; font-size: 11px; font-weight: 800; cursor: pointer; }
+.approve-button:disabled { opacity: .45; cursor: not-allowed; }
+.approval-success, .approval-error { margin-top: 10px; font-size: 11px; }
 .composer-note { margin: 9px auto 0; color: #50645d; font-size: 9px; text-align: center; }
 
 .typing { display: flex; gap: 5px; padding: 15px; }
@@ -237,7 +290,7 @@ button { color: inherit; }
 @media (max-width: 800px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { position: static; min-height: auto; padding: 18px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .workspace-label, .nav-stack, .safety-card, .sidebar-footer { display: none; }
+  .workspace-label, .nav-stack, .history-list, .safety-card, .sidebar-footer { display: none; }
   .topbar { padding: 22px 18px 17px; }
   .clear-button { display: none; }
   .conversation { padding: 28px 16px 170px; }
